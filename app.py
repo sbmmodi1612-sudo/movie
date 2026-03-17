@@ -1,6 +1,7 @@
 import streamlit as st
 import anthropic
 import json
+import os
 
 st.set_page_config(page_title="CineMatch – AI Movie Recommender", page_icon="🎬", layout="wide")
 
@@ -136,10 +137,11 @@ st.markdown("""
 st.markdown("---")
 
 # ── Sidebar: API key ──────────────────────────────────────────────────────────
+
+
+api_key = os.getenv("ANTHROPIC_API_KEY")
 with st.sidebar:
     st.markdown("### ⚙️ Settings")
-    api_key = st.text_input("Anthropic API Key", type="password",
-                            help="Get your key at https://console.anthropic.com/")
     st.markdown("---")
     st.markdown("**Filter by Industry**")
     industry_filter = st.selectbox("", ["All", "Hollywood", "Bollywood", "Tollywood", "Korean", "World Cinema"], label_visibility="collapsed")
@@ -189,7 +191,8 @@ def render_movie_card(m):
 # ── Search & render ───────────────────────────────────────────────────────────
 if trigger and query:
     if not api_key:
-        st.error("Please enter your Anthropic API key in the sidebar.")
+        st.error("API key not configured on server.")
+        st.stop()
     else:
         filter_note = (
             "Include movies from Hollywood, Bollywood, Tollywood, Korean cinema, Japanese, European and other world cinemas."
