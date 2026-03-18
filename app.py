@@ -2,6 +2,10 @@ import streamlit as st
 import anthropic
 import json
 import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 st.set_page_config(page_title="CineMatch – AI Movie Recommender", page_icon="🎬", layout="wide")
 
@@ -140,6 +144,7 @@ st.markdown("---")
 
 
 api_key = os.getenv("ANTHROPIC_API_KEY")
+OMDB_API_KEY = os.getenv("OMDB_API_KEY")
 with st.sidebar:
     st.markdown("### ⚙️ Settings")
     st.markdown("---")
@@ -175,24 +180,54 @@ def get_badge_class(industry):
 def render_movie_card(m):
     badge_class = get_badge_class(m.get("industry", ""))
     genres_html = "".join(f'<span class="genre-tag">{g}</span>' for g in m.get("genres", []))
+
     st.markdown(f"""
     <div class="movie-card">
       <div class="card-top">
         <span class="industry-badge {badge_class}">{m.get('industry','')}</span>
         <span class="match-score">{m.get('match_score','')}% match</span>
       </div>
+
       <p class="movie-title">{m.get('title','')}</p>
-      <p class="movie-meta">{m.get('year','')} · {m.get('director','')}</p>
+
+      <p class="movie-meta">
+        {m.get('year','')} · {m.get('runtime','')} · ⭐ {m.get('imdb_rating','')}
+      </p>
+
       <div class="genre-tags">{genres_html}</div>
-      <p class="movie-reason">{m.get('reason','')}</p>
+
+      <p class="movie-meta"><b>Country:</b> {m.get('country','')}</p>
+      <p class="movie-meta"><b>Director:</b> {m.get('director','')}</p>
+      <p class="movie-meta"><b>Cast:</b> {m.get('cast','')}</p>
+
+      <p class="movie-reason">{m.get('plot','')}</p>
     </div>
     """, unsafe_allow_html=True)
 
+def get_movie_details(title):
+    url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
+
+    response = requests.get(url)
+    data = response.json()
+
+    if data.get("Response") == "True":
+        return {
+            "imdb_rating": data.get("imdbRating"),
+            "runtime": data.get("Runtime"),
+            "year": data.get("Year"),
+            "country": data.get("Country"),
+            "genres": data.get("Genre", "").split(", "),
+            "director": data.get("Director"),
+            "cast": data.get("Actors"),
+            "plot": data.get("Plot")
+        }
+    return {}
+    
 # ── Search & render ───────────────────────────────────────────────────────────
 if trigger and query:
-    if not api_key:
-        st.error("API key not configured on server.")
-        st.stop()
+    if not api_key or not OMDB_API_KEY:
+       st.error("API keys not configured. Please check your .env file.")
+       st.stop()
     else:
         filter_note = (
             "Include movies from Hollywood, Bollywood, Tollywood, Korean cinema, Japanese, European and other world cinemas."
@@ -227,6 +262,11 @@ Return ONLY the JSON array."""
                 raw = message.content[0].text.strip()
                 clean = raw.replace("```json", "").replace("```", "").strip()
                 movies = json.loads(clean)
+                for m in movies:
+                    details = get_movie_details(m["title"])
+    
+                    if details:
+                        m.update(details)
                 movies.sort(key=lambda x: x.get("match_score", 0), reverse=True)
 
                 if industry_filter != "All":
