@@ -3,9 +3,9 @@ import anthropic
 import json
 import os
 import requests
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
-load_dotenv()
+# load_dotenv()
 
 st.set_page_config(page_title="CineMatch – AI Movie Recommender", page_icon="🎬", layout="wide")
 
